@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粤港亲子17日游 - 智能行程看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-red: #ef4444;
+            --border-color: #475569;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .header-info span {
+            background: var(--bg-card);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        /* 左侧物料库 */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar h3 {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .category {
+            margin-bottom: 25px;
+        }
+
+        .category-title {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .draggable-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            cursor: grab;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .draggable-item:hover {
+            border-color: var(--accent-blue);
+            transform: translateX(3px);
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        .draggable-item .icon {
+            font-size: 1.2em;
+        }
+
+        .draggable-item.city { border-left: 3px solid var(--accent-blue); }
+        .draggable-item.transport { border-left: 3px solid var(--accent-orange); }
+        .draggable-item.hotel { border-left: 3px solid var(--accent-green); }
+        .draggable-item.activity { border-left: 3px solid var(--accent-purple); }
+        .draggable-item.food { border-left: 3px solid var(--accent-pink); }
+        .draggable-item.note { border-left: 3px solid var(--accent-red); }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: var(--accent-blue) !important;
+        }
+
+        .sortable-drag {
+            opacity: 0.8;
+            box-shadow: var(--shadow);
+        }
+
+        /* 右侧时间线区域 */
+        .timeline-container {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .timeline {
+            display: flex;
+            gap: 12px;
+            min-width: max-content;
+            padding-bottom: 20px;
+        }
+
+        .day-column {
+            width: 220px;
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .day-header {
+            background: linear-gradient(135deg, #1e3a5f, #2d4a6f);
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .day-header .date {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .day-header .weekday {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .day-header .badge {
+            display: inline-block;
+            font-size: 0.65em;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+
+        .badge-work { background: #64748b; color: #e2e8f0; }
+        .badge-midautumn { background: #f59e0b; color: #1e293b; }
+        .badge-national { background: #ef4444; color: white; }
+        .badge-normal { background: #475569; color: #e2e8f0; }
+
+        .day-slots {
+            padding: 8px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 500px;
+        }
+
+        .slot-group {
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 6px;
+            border: 1px dashed rgba(255,255,255,0.08);
+            min-height: 60px;
+            transition: all 0.2s;
+        }
+
+        .slot-group:hover {
+            border-color: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .slot-group.drag-over {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .slot-label {
+            font-size: 0.7em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            padding: 0 4px;
+        }
+
+        .slot-items {
+            min-height: 30px;
+        }
+
+        /* 卡片样式 */
+        .plan-card {
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.82em;
+            margin-bottom: 4px;
+            cursor: grab;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .plan-card:active { cursor: grabbing; }
+        .plan-card:hover { transform: scale(1.02); }
+
+        .plan-card .card-icon { font-size: 1em; flex-shrink: 0; }
+        .plan-card .card-content { flex: 1; }
+        .plan-card .card-title { font-weight: 500; }
+        .plan-card .card-subtitle { font-size: 0.8em; color: var(--text-secondary); margin-top: 2px; }
+        .plan-card .card-delete {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .plan-card:hover .card-delete { opacity: 1; }
+        .plan-card .card-delete:hover { color: var(--accent-red); }
+
+        .plan-card.city { background: linear-gradient(135deg, #1e3a5f, #1e40af20); border: 1px solid #3b82f640; }
+        .plan-card.transport { background: linear-gradient(135deg, #451a03, #f59e0b15); border: 1px solid #f59e0b40; }
+        .plan-card.hotel { background: linear-gradient(135deg, #064e3b, #10b98115); border: 1px solid #10b98140; }
+        .plan-card.activity { background: linear-gradient(135deg, #3b0764, #8b5cf615); border: 1px solid #8b5cf640; }
+        .plan-card.food { background: linear-gradient(135deg, #500724, #ec489915); border: 1px solid #ec489940; }
+        .plan-card.note { background: linear-gradient(135deg, #450a0a, #ef444415); border: 1px solid #ef444440; }
+
+        /* 拖拽中的样式 */
+        .sortable-ghost { opacity: 0.3; }
+        .sortable-drag { opacity: 0.9; }
+
+        /* 模态框 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            width: 420px;
+            max-width: 90vw;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+        }
+
+        .modal h3 { margin-bottom: 16px; }
+        .modal label { display: block; font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px; margin-top: 12px; }
+        .modal input, .modal select, .modal textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+        .modal textarea { resize: vertical; min-height: 60px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .sidebar { width: 220px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ 粤港亲子中秋国庆17日游</h1>
+        <div class="header-info">
+            <span>👨‍👩‍👦 3人出行</span>
+            <span>📅 9.21 - 10.7</span>
+            <span>📍 珠海→香港→深圳→汕头→梅州</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn" onclick="openAddModal()">+ 添加自定义卡片</button>
+            <button class="btn" onclick="exportPlan()">📷 导出图片</button>
+            <button class="btn btn-primary" onclick="savePlan()">💾 保存</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- 左侧物料库 -->
+        <div class="sidebar">
+    <h3>🏙️ 城市</h3>
+    <div id="library-cities">
+        <div class="draggable-item city" data-type="city" data-title="上海" data-subtitle="出发地/返回地" data-icon="🏠">
+            <span class="icon">🏠</span> 上海
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="珠海" data-subtitle="长隆海洋王国" data-icon="🏖️">
+            <span class="icon">🏖️</span> 珠海
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="澳门" data-subtitle="大三巴、威尼斯人" data-icon="🎰">
+            <span class="icon">🎰</span> 澳门
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="香港" data-subtitle="迪士尼乐园" data-icon="🏰">
+            <span class="icon">🏰</span> 香港
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="深圳" data-subtitle="世界之窗、欢乐谷" data-icon="🌃">
+            <span class="icon">🌃</span> 深圳
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="汕头" data-subtitle="潮汕美食、南澳岛" data-icon="🍲">
+            <span class="icon">🍲</span> 汕头
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="潮州" data-subtitle="古城、广济桥" data-icon="🏛️">
+            <span class="icon">🏛️</span> 潮州
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="梅州" data-subtitle="客都文化、茶田" data-icon="🍵">
+            <span class="icon">🍵</span> 梅州
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="广州" data-subtitle="长隆、珠江夜游" data-icon="🌺">
+            <span class="icon">🌺</span> 广州
+        </div>
+        <div class="draggable-item city" data-type="city" data-title="惠州" data-subtitle="西湖、双月湾" data-icon="🏝️">
+            <span class="icon">🏝️</span> 惠州
+        </div>
+    </div>
+
+    <h3>🚗 交通</h3>
+    <div id="library-transport">
+        <div class="draggable-item transport" data-type="transport" data-title="飞机" data-subtitle="上海→珠海 / 梅州→上海" data-icon="✈️">
+            <span class="icon">✈️</span> 飞机
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="高铁" data-subtitle="深圳→汕头 / 汕头→梅州" data-icon="🚄">
+            <span class="icon">🚄</span> 高铁
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="自驾/租车" data-subtitle="梅州境内及周边" data-icon="🚗">
+            <span class="icon">🚗</span> 自驾/租车
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="港珠澳大桥穿梭巴士" data-subtitle="珠海→香港（40分钟）" data-icon="🚌">
+            <span class="icon">🚌</span> 穿梭巴士
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="直通巴士" data-subtitle="珠海→香港市区（2.5h）" data-icon="🚌">
+            <span class="icon">🚌</span> 直通巴士
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="港铁" data-subtitle="落马洲→香港市区" data-icon="🚇">
+            <span class="icon">🚇</span> 港铁
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="口岸过关" data-subtitle="福田/深圳湾口岸" data-icon="🛂">
+            <span class="icon">🛂</span> 口岸过关
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="步行过关" data-subtitle="珠海→澳门（拱北口岸）" data-icon="🚶">
+            <span class="icon">🚶</span> 步行过关
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="轮渡" data-subtitle="珠海九洲港→香港/澳门" data-icon="⛴️">
+            <span class="icon">⛴️</span> 轮渡
+        </div>
+        <div class="draggable-item transport" data-type="transport" data-title="南澳大桥" data-subtitle="汕头→南澳岛" data-icon="🌉">
+            <span class="icon">🌉</span> 南澳大桥
+        </div>
+    </div>
+
+    <h3>🏨 住宿</h3>
+    <div id="library-hotels">
+        <div class="draggable-item hotel" data-type="hotel" data-title="珠海长隆横琴湾酒店" data-subtitle="亲子水上乐园" data-icon="🏨">
+            <span class="icon">🏨</span> 横琴湾酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="珠海企鹅酒店" data-subtitle="距海洋王国最近" data-icon="🐧">
+            <span class="icon">🐧</span> 企鹅酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="迪士尼探索家度假酒店" data-subtitle="探险主题+早入园" data-icon="🏰">
+            <span class="icon">🏰</span> 探索家酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="迪士尼好莱坞酒店" data-subtitle="步行5分钟入园" data-icon="🎬">
+            <span class="icon">🎬</span> 好莱坞酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="深圳福田/南山酒店" data-subtitle="市中心交通便利" data-icon="🏢">
+            <span class="icon">🏢</span> 深圳中心区酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="汕头万象城附近酒店" data-subtitle="离小公园近" data-icon="🏨">
+            <span class="icon">🏨</span> 汕头万象城酒店
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="南澳岛海景公寓" data-subtitle="青澳湾沙滩旁" data-icon="🏖️">
+            <span class="icon">🏖️</span> 南澳海景公寓
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="潮州古城客栈" data-subtitle="牌坊街民宿" data-icon="🏠">
+            <span class="icon">🏠</span> 潮州古城客栈
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="梅州雁南飞度假别墅" data-subtitle="茶田景区内" data-icon="🏡">
+            <span class="icon">🏡</span> 雁南飞别墅
+        </div>
+        <div class="draggable-item hotel" data-type="hotel" data-title="梅州客天下度假区" data-subtitle="温泉+亲子设施" data-icon="♨️">
+            <span class="icon">♨️</span> 客天下度假区
+        </div>
+    </div>
+
+    <h3>🎯 景点活动</h3>
+    <div id="library-activities">
+        <div class="draggable-item activity" data-type="activity" data-title="长隆海洋王国" data-subtitle="鲸鲨馆+烟花秀" data-icon="🐋">
+            <span class="icon">🐋</span> 长隆海洋王国
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="情侣路漫步" data-subtitle="珠海渔女+城市阳台" data-icon="🌊">
+            <span class="icon">🌊</span> 情侣路
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="澳门大三巴" data-subtitle="地标打卡+博物馆" data-icon="⛪">
+            <span class="icon">⛪</span> 大三巴牌坊
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="威尼斯人贡多拉" data-subtitle="室内运河游船" data-icon="🚣">
+            <span class="icon">🚣</span> 威尼斯人
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="官也街美食" data-subtitle="安德鲁蛋挞+猪扒包" data-icon="🥐">
+            <span class="icon">🥐</span> 官也街美食
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="香港迪士尼一日" data-subtitle="魔雪奇缘+烟花秀" data-icon="🎢">
+            <span class="icon">🎢</span> 迪士尼乐园
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="HK Disney 二刷" data-subtitle="再玩心仪项目" data-icon="⭐">
+            <span class="icon">⭐</span> 迪士尼二刷
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="HK 爸爸工作" data-subtitle="妈妈小朋友酒店游玩" data-icon="💼">
+            <span class="icon">💼</span> 爸爸在香港工作
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="世界之窗" data-subtitle="环球微缩景观" data-icon="🌍">
+            <span class="icon">🌍</span> 世界之窗
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="深圳湾公园赏月" data-subtitle="中秋夜+海景" data-icon="🌕">
+            <span class="icon">🌕</span> 深圳湾赏月
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="小公园历史街区" data-subtitle="骑楼老街漫步" data-icon="🏛️">
+            <span class="icon">🏛️</span> 小公园街区
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="南澳岛青澳湾" data-subtitle="沙滩玩水+北回归线" data-icon="🏖️">
+            <span class="icon">🏖️</span> 南澳岛
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="潮州古城" data-subtitle="广济桥+牌坊街+开元寺" data-icon="🏯">
+            <span class="icon">🏯</span> 潮州古城
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="雁南飞茶田" data-subtitle="采茶+制茶体验" data-icon="🍃">
+            <span class="icon">🍃</span> 雁南飞茶田
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="桥溪古韵" data-subtitle="400年客家古村" data-icon="🏘️">
+            <span class="icon">🏘️</span> 桥溪古韵
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="灵光寺" data-subtitle="阴那山千年古刹" data-icon="🛕">
+            <span class="icon">🛕</span> 灵光寺
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="温泉度假" data-subtitle="丰顺/客天下温泉" data-icon="♨️">
+            <span class="icon">♨️</span> 温泉度假
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="客家博物馆" data-subtitle="了解客家迁徙历史" data-icon="🏛️">
+            <span class="icon">🏛️</span> 客家博物馆
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="自由活动/休整" data-subtitle="放松一天" data-icon="☕">
+            <span class="icon">☕</span> 自由休整
+        </div>
+        <div class="draggable-item activity" data-type="activity" data-title="采购手信" data-subtitle="金柚、梅菜干、娘酒" data-icon="🛍️">
+            <span class="icon">🛍️</span> 采购手信
+        </div>
+    </div>
+
+    <h3>🍜 美食</h3>
+    <div id="library-food">
+        <div class="draggable-item food" data-type="food" data-title="湾仔海鲜街" data-subtitle="生蚝+海鲜大餐" data-icon="🦐">
+            <span class="icon">🦐</span> 湾仔海鲜
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="澳门美食" data-subtitle="蛋挞+猪扒包+葡国鸡" data-icon="🥘">
+            <span class="icon">🥘</span> 澳门美食
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="港式茶餐厅" data-subtitle="菠萝包+丝袜奶茶" data-icon="🥤">
+            <span class="icon">🥤</span> 港式茶餐厅
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="迪士尼主题餐" data-subtitle="皇室宴会厅套餐" data-icon="🍽️">
+            <span class="icon">🍽️</span> 迪士尼主题餐
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="椰子鸡火锅" data-subtitle="深圳特色" data-icon="🥥">
+            <span class="icon">🥥</span> 椰子鸡火锅
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="汕头牛肉火锅" data-subtitle="杏花吴记/鸿福" data-icon="🥩">
+            <span class="icon">🥩</span> 汕头牛肉火锅
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="南澳岛海鲜" data-subtitle="渔家大排档" data-icon="🐟">
+            <span class="icon">🐟</span> 南澳岛海鲜
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="潮州菜" data-subtitle="卤水拼盘+蚝烙+牛肉丸" data-icon="🥢">
+            <span class="icon">🥢</span> 潮州菜
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="客家菜" data-subtitle="盐焗鸡+梅菜扣肉+酿豆腐" data-icon="🍗">
+            <span class="icon">🍗</span> 客家菜
+        </div>
+        <div class="draggable-item food" data-type="food" data-title="梅州腌面" data-subtitle="客家传统早餐" data-icon="🍜">
+            <span class="icon">🍜</span> 梅州腌面
+        </div>
+    </div>
+</div>
+
+        <!-- 右侧时间线看板 -->
+        <div class="timeline-container">
+            <div class="timeline" id="timeline">
+                <!-- 日期列由JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加卡片模态框 -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <h3>➕ 添加自定义卡片</h3>
+            <label>类型</label>
+            <select id="newCardType">
+                <option value="city">🏙️ 城市</option>
+                <option value="transport">🚗 交通</option>
+                <option value="hotel">🏨 住宿</option>
+                <option value="activity">🎯 景点活动</option>
+                <option value="food">🍜 美食</option>
+                <option value="note">📝 备注</option>
+            </select>
+            <label>标题</label>
+            <input type="text" id="newCardTitle" placeholder="输入标题...">
+            <label>副标题/说明</label>
+            <textarea id="newCardSubtitle" placeholder="输入详细描述（可选）..."></textarea>
+            <label>目标日期</label>
+            <select id="newCardDay"></select>
+            <label>目标分类</label>
+            <select id="newCardSlot">
+                <option value="city">城市</option>
+                <option value="transport">交通</option>
+                <option value="hotel">住宿</option>
+                <option value="activity">景点活动</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeAddModal()">取消</button>
+                <button class="btn btn-primary" onclick="addCustomCard()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 数据定义 ==========
+        const dateList = [
+            { date: '9/21', weekday: '周日', badge: 'normal', badgeText: '出发' },
+            { date: '9/22', weekday: '周一', badge: 'work', badgeText: '工作日' },
+            { date: '9/23', weekday: '周二', badge: 'work', badgeText: '工作日' },
+            { date: '9/24', weekday: '周三', badge: 'work', badgeText: '工作日·爸爸HK工作' },
+            { date: '9/25', weekday: '周四', badge: 'midautumn', badgeText: '🔶 中秋节' },
+            { date: '9/26', weekday: '周五', badge: 'midautumn', badgeText: '中秋假期' },
+            { date: '9/27', weekday: '周六', badge: 'midautumn', badgeText: '中秋假期' },
+            { date: '9/28', weekday: '周日', badge: 'normal', badgeText: '返程准备' },
+            { date: '9/29', weekday: '周一', badge: 'normal', badgeText: '' },
+            { date: '9/30', weekday: '周二', badge: 'normal', badgeText: '' },
+            { date: '10/1', weekday: '周三', badge: 'national', badgeText: '🇨🇳 国庆节' },
+            { date: '10/2', weekday: '周四', badge: 'national', badgeText: '国庆假期' },
+            { date: '10/3', weekday: '周五', badge: 'national', badgeText: '国庆假期' },
+            { date: '10/4', weekday: '周六', badge: 'national', badgeText: '国庆假期' },
+            { date: '10/5', weekday: '周日', badge: 'national', badgeText: '国庆假期' },
+            { date: '10/6', weekday: '周一', badge: 'national', badgeText: '国庆假期' },
+            { date: '10/7', weekday: '周二', badge: 'national', badgeText: '国庆·返程' },
+        ];
+
+        // 默认行程数据
+        const defaultPlan = {
+            0: { // 9/21
+                city: [{ title: '珠海', subtitle: '抵达', icon: '🏖️' }],
+                transport: [{ title: '飞机', subtitle: '上海→珠海 06:55-09:40', icon: '✈️' }],
+                hotel: [{ title: '住珠海', subtitle: '长隆附近酒店', icon: '🏨' }],
+                activity: [{ title: '长隆海洋王国', subtitle: '下午入园+夜间烟花', icon: '🐋' }]
+            },
+            1: { // 9/22
+                city: [{ title: '澳门', subtitle: '一日游', icon: '🎰' }, { title: '珠海', subtitle: '返回', icon: '🏖️' }],
+                transport: [{ title: '步行过关', subtitle: '拱北口岸→澳门', icon: '🚶' }, { title: '情侣路漫步', subtitle: '珠海渔女', icon: '🌊' }],
+                hotel: [{ title: '住珠海', subtitle: '情侣路沿线', icon: '🏨' }],
+                activity: [{ title: '大三巴+博物馆', subtitle: '葡萄牙风情', icon: '⛪' }, { title: '威尼斯人', subtitle: '贡多拉游船', icon: '🚣' }, { title: '官也街美食', subtitle: '蛋挞+猪扒包', icon: '🥐' }]
+            },
+            2: { // 9/23
+                city: [{ title: '香港', subtitle: '迪士尼', icon: '🏰' }],
+                transport: [{ title: '穿梭巴士', subtitle: '珠海港澳大桥→HK', icon: '🚌' }],
+                hotel: [{ title: '住香港', subtitle: '迪士尼附近酒店', icon: '🏨' }],
+                activity: [{ title: '迪士尼乐园', subtitle: '魔雪奇缘+烟花秀', icon: '🎢' }]
+            },
+            3: { // 9/24
+                city: [{ title: '香港', subtitle: '爸爸工作', icon: '💼' }, { title: '深圳', subtitle: '傍晚抵达', icon: '🌃' }],
+                transport: [{ title: '口岸过关', subtitle: 'HK→深圳湾口岸', icon: '🛂' }],
+                hotel: [{ title: '住深圳', subtitle: '福田中心区', icon: '🏨' }],
+                activity: [{ title: '爸爸香港工作', subtitle: '妈妈小朋友休息', icon: '💼' }, { title: '深圳湾夜景', subtitle: '欢乐海岸', icon: '🌃' }]
+            },
+            4: { // 9/25 中秋节
+                city: [{ title: '深圳', subtitle: '中秋赏月', icon: '🌃' }],
+                transport: [],
+                hotel: [{ title: '住深圳', subtitle: '福田/南山', icon: '🏨' }],
+                activity: [{ title: '世界之窗', subtitle: '环球微缩景观', icon: '🌍' }, { title: '中秋赏月', subtitle: '深圳湾公园', icon: '🌕' }, { title: '广式月饼', subtitle: '中秋美食', icon: '🥮' }]
+            },
+            5: { // 9/26
+                city: [{ title: '汕头', subtitle: '潮汕美食', icon: '🍲' }],
+                transport: [{ title: '高铁', subtitle: '深圳北→汕头站', icon: '🚄' }],
+                hotel: [{ title: '住汕头', subtitle: '万象城附近', icon: '🏨' }],
+                activity: [{ title: '小公园历史街区', subtitle: '骑楼老街', icon: '🏛️' }, { title: '牛肉火锅', subtitle: '杏花吴记/鸿福', icon: '🥩' }]
+            },
+            6: { // 9/27
+                city: [{ title: '南澳岛', subtitle: '海岛风光', icon: '🏖️' }, { title: '潮州', subtitle: '古城', icon: '🏯' }],
+                transport: [{ title: '南澳大桥', subtitle: '汕头→南澳岛', icon: '🌉' }],
+                hotel: [{ title: '住潮州', subtitle: '古城客栈', icon: '🏠' }],
+                activity: [{ title: '青澳湾沙滩', subtitle: '玩沙踏浪', icon: '🏖️' }, { title: '潮州古城', subtitle: '广济桥+牌坊街', icon: '🏯' }, { title: '潮州菜', subtitle: '蚝烙+卤水拼盘', icon: '🥢' }]
+            },
+            7: { // 9/28
+                city: [{ title: '梅州', subtitle: '客都', icon: '🍵' }],
+                transport: [{ title: '自驾/高铁', subtitle: '汕头→梅州', icon: '🚗' }],
+                hotel: [{ title: '住梅州', subtitle: '雁南飞/城区', icon: '🏨' }],
+                activity: [{ title: '雁南飞茶田', subtitle: '采茶体验', icon: '🍃' }]
+            },
+            8: { // 9/29
+                city: [{ title: '梅州', subtitle: '梅县', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', subtitle: '城区酒店', icon: '🏨' }],
+                activity: [{ title: '桥溪古韵', subtitle: '400年客家古村', icon: '🏘️' }]
+            },
+            9: { // 9/30
+                city: [{ title: '梅州', subtitle: '城区', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', subtitle: '城区酒店', icon: '🏨' }],
+                activity: [{ title: '客家博物馆', subtitle: '客家迁徙历史', icon: '🏛️' }, { title: '千佛塔', subtitle: '登高望远', icon: '🛕' }]
+            },
+            10: { // 10/1
+                city: [{ title: '梅州', subtitle: '阴那山', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '灵光寺', subtitle: '千年古刹', icon: '🛕' }, { title: '阴那山', subtitle: '五指峰观光', icon: '⛰️' }]
+            },
+            11: { // 10/2
+                city: [{ title: '梅州', subtitle: '兴宁', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '熙和湾', subtitle: '花灯小镇+儿童乐园', icon: '🎡' }]
+            },
+            12: { // 10/3
+                city: [{ title: '梅州', subtitle: '大埔', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '花萼楼', subtitle: '广东最大土楼', icon: '🏠' }, { title: '泰安楼', subtitle: '石方楼', icon: '🏘️' }]
+            },
+            13: { // 10/4
+                city: [{ title: '梅州', subtitle: '蕉岭', icon: '🍵' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '长潭旅游区', subtitle: '山水画廊', icon: '🖼️' }, { title: '长寿村', subtitle: '乡村体验', icon: '🌿' }]
+            },
+            14: { // 10/5
+                city: [{ title: '梅州', subtitle: '丰顺', icon: '♨️' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '丰顺温泉', subtitle: '温泉之城泡汤', icon: '♨️' }]
+            },
+            15: { // 10/6
+                city: [{ title: '梅州', subtitle: '★ 自由日', icon: '☕' }],
+                transport: [],
+                hotel: [{ title: '住梅州', icon: '🏨' }],
+                activity: [{ title: '自由休整', subtitle: '泡茶/散步/买菜', icon: '☕' }, { title: '采购手信', subtitle: '金柚+梅菜干+娘酒', icon: '🛍️' }]
+            },
+            16: { // 10/7
+                city: [{ title: '上海', subtitle: '到家', icon: '🏠' }],
+                transport: [{ title: '飞机/高铁', subtitle: '梅州→上海', icon: '✈️' }],
+                hotel: [],
+                activity: [{ title: '返程', subtitle: '结束愉快旅程', icon: '👋' }]
+            }
+        };
+
+        let planData = JSON.parse(JSON.stringify(defaultPlan));
+
+        // ========== 初始化 ==========
+        function init() {
+            loadPlan();
+            renderTimeline();
+            initSortable();
+            populateNewCardDay();
+        }
+
+        // 获取保存的计划
+        function loadPlan() {
+            const saved = localStorage.getItem('travelPlan');
+            if (saved) {
+                try {
+                    planData = JSON.parse(saved);
+                    // 合并默认计划以确保新日期有默认值
+                    for (let i = 0; i < dateList.length; i++) {
+                        if (!planData[i]) {
+                            planData[i] = defaultPlan[i] || { city: [], transport: [], hotel: [], activity: [] };
+                        }
+                    }
+                } catch (e) {
+                    console.warn('加载保存的计划失败，使用默认计划');
+                    planData = JSON.parse(JSON.stringify(defaultPlan));
+                }
+            } else {
+                planData = JSON.parse(JSON.stringify(defaultPlan));
+            }
+        }
+
+        // 保存计划
+        function savePlan() {
+            localStorage.setItem('travelPlan', JSON.stringify(planData));
+            showToast('计划已保存！');
+        }
+
+        // 重置为默认
+        function resetPlan() {
+            if (confirm('确定要重置为默认计划吗？所有自定义修改将丢失。')) {
+                planData = JSON.parse(JSON.stringify(defaultPlan));
+                localStorage.removeItem('travelPlan');
+                renderTimeline();
+                initSortable();
+                showToast('已重置为默认计划');
+            }
+        }
+
+        // ========== 渲染时间线 ==========
+        function renderTimeline() {
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = '';
+
+            dateList.forEach((day, idx) => {
+                const col = document.createElement('div');
+                col.className = 'day-column';
+                col.dataset.index = idx;
+
+                col.innerHTML = `
+                    <div class="day-header">
+                        <div class="date">${day.date}</div>
+                        <div class="weekday">${day.weekday}</div>
+                        ${day.badgeText ? `<span class="badge badge-${day.badge}">${day.badgeText}</span>` : ''}
+                    </div>
+                    <div class="day-slots">
+                        <div class="slot-group" data-slot="city" data-day="${idx}">
+                            <div class="slot-label">🏙️ 城市</div>
+                            <div class="slot-items"></div>
+                        </div>
+                        <div class="slot-group" data-slot="transport" data-day="${idx}">
+                            <div class="slot-label">🚗 交通</div>
+                            <div class="slot-items"></div>
+                        </div>
+                        <div class="slot-group" data-slot="hotel" data-day="${idx}">
+                            <div class="slot-label">🏨 住宿</div>
+                            <div class="slot-items"></div>
+                        </div>
+                        <div class="slot-group" data-slot="activity" data-day="${idx}">
+                            <div class="slot-label">🎯 景点活动</div>
+                            <div class="slot-items"></div>
+                        </div>
+                    </div>
+                `;
+                timeline.appendChild(col);
+            });
+
+            // 填充卡片
+            Object.keys(planData).forEach(dayIdx => {
+                const dayPlan = planData[dayIdx];
+                if (!dayPlan) return;
+
+                ['city', 'transport', 'hotel', 'activity'].forEach(slot => {
+                    if (dayPlan[slot]) {
+                        dayPlan[slot].forEach((card, cardIdx) => {
+                            createCardElement(dayIdx, slot, card, cardIdx);
+                        });
+                    }
+                });
+            });
+        }
+
+        // 创建卡片DOM
+        function createCardElement(dayIdx, slot, card, cardIdx) {
+            const col = document.querySelector(`.day-column[data-index="${dayIdx}"]`);
+            if (!col) return;
+            const slotItems = col.querySelector(`.slot-group[data-slot="${slot}"] .slot-items`);
+            if (!slotItems) return;
+
+            const cardEl = document.createElement('div');
+            cardEl.className = `plan-card ${slot}`;
+            cardEl.dataset.day = dayIdx;
+            cardEl.dataset.slot = slot;
+            cardEl.dataset.idx = cardIdx;
+            cardEl.innerHTML = `
+                <span class="card-icon">${card.icon || getDefaultIcon(slot)}</span>
+                <div class="card-content">
+                    <div class="card-title">${card.title}</div>
+                    ${card.subtitle ? `<div class="card-subtitle">${card.subtitle}</div>` : ''}
+                </div>
+                <button class="card-delete" onclick="deleteCard(${dayIdx}, '${slot}', ${cardIdx})">✕</button>
+            `;
+            slotItems.appendChild(cardEl);
+        }
+
+        function getDefaultIcon(slot) {
+            const icons = { city: '🏙️', transport: '🚗', hotel: '🏨', activity: '🎯' };
+            return icons[slot] || '📌';
+        }
+
+        // ========== 拖拽功能 ==========
+        function initSortable() {
+            // 初始化左侧物料库 → 日期槽的拖拽
+            document.querySelectorAll('#library-cities .draggable-item, #library-transport .draggable-item, #library-hotels .draggable-item, #library-activities .draggable-item, #library-food .draggable-item').forEach(item => {
+                item.addEventListener('dragstart', handleLibraryDragStart);
+                item.draggable = true;
+            });
+
+            // 初始化日期列之间的拖拽区域
+            document.querySelectorAll('.slot-group').forEach(group => {
+                group.addEventListener('dragover', handleDragOver);
+                group.addEventListener('dragleave', handleDragLeave);
+                group.addEventListener('drop', handleDrop);
+                group.addEventListener('dragenter', handleDragEnter);
+            });
+
+            // 卡片之间的排序
+            document.querySelectorAll('.slot-items').forEach(container => {
+                new Sortable(container, {
+                    group: 'shared',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    draggable: '.plan-card',
+                    onEnd: handleCardSort
+                });
+            });
+        }
+
+        let draggedLibraryItem = null;
+
+        function handleLibraryDragStart(e) {
+            draggedLibraryItem = {
+                type: e.target.dataset.type,
+                title: e.target.dataset.title,
+                subtitle: e.target.dataset.subtitle,
+                icon: e.target.dataset.icon || e.target.querySelector('.icon')?.textContent
+            };
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', JSON.stringify(draggedLibraryItem));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDragEnter(e) {
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            const slotGroup = e.currentTarget;
+            const dayIdx = slotGroup.dataset.day;
+            const targetType = slotGroup.dataset.slot;
+
+            // 从左侧物料库拖入
+            if (draggedLibraryItem) {
+                const newCard = {
+                    title: draggedLibraryItem.title,
+                    subtitle: draggedLibraryItem.subtitle || '',
+                    icon: draggedLibraryItem.icon || getDefaultIcon(targetType)
+                };
+
+                if (!planData[dayIdx]) {
+                    planData[dayIdx] = { city: [], transport: [], hotel: [], activity: [] };
+                }
+
+                // 城市/交通/住宿槽位只能放对应类型
+                const validSlots = {
+                    'city': ['city'],
+                    'transport': ['transport'],
+                    'hotel': ['hotel'],
+                    'activity': ['activity'],
+                    'food': ['activity'],
+                    'note': ['activity']
+                };
+
+                const allowedSlots = validSlots[draggedLibraryItem.type];
+                if (allowedSlots && allowedSlots.includes(targetType)) {
+                    planData[dayIdx][targetType].push(newCard);
+                    saveAndRefresh();
+                    // 重新渲染这一天以显示拖入的新卡片
+                    refreshDay(dayIdx);
+                } else {
+                    // 提示不能放这里
+                    // 根据类型自动找到匹配的槽
+                    const correctType = getObjectKeyForValue(validSlots, draggedLibraryItem.type);
+                    if (correctType) {
+                        showToast(`建议将"${draggedLibraryItem.title}"拖到"${getSlotLabel(correctType)}"区域`);
+                    }
+                }
+                draggedLibraryItem = null;
+            }
+        }
+
+        function getObjectKeyForValue(obj, val) {
+            for (const [key, arr] of Object.entries(obj)) {
+                if (arr.includes(val)) return key;
+            }
+            return null;
+        }
+
+        function getSlotLabel(slot) {
+            const labels = { city: '城市', transport: '交通', hotel: '住宿', activity: '景点活动' };
+            return labels[slot] || slot;
+        }
+
+        // 处理卡片排序
+        function handleCardSort(e) {
+            const dayIdx = e.item.dataset.day;
+            const slot = e.item.dataset.slot;
+
+            // 重新排序数据
+            const container = e.to;
+            const newOrder = [];
+            container.querySelectorAll('.plan-card').forEach(cardEl => {
+                const title = cardEl.querySelector('.card-title').textContent;
+                const subtitle = cardEl.querySelector('.card-subtitle')?.textContent || '';
+                const icon = cardEl.querySelector('.card-icon').textContent;
+                newOrder.push({ title, subtitle, icon });
+            });
+
+            if (planData[dayIdx]) {
+                planData[dayIdx][slot] = newOrder;
+                saveAndRefresh();
+            }
+        }
+
+        // 删除卡片
+        function deleteCard(dayIdx, slot, cardIdx) {
+            if (planData[dayIdx] && planData[dayIdx][slot]) {
+                planData[dayIdx][slot].splice(cardIdx, 1);
+                saveAndRefresh();
+                refreshDay(dayIdx);
+            }
+        }
+
+        // 刷新某一天的显示
+        function refreshDay(dayIdx) {
+            const col = document.querySelector(`.day-column[data-index="${dayIdx}"]`);
+            if (!col || !planData[dayIdx]) return;
+
+            ['city', 'transport', 'hotel', 'activity'].forEach(slot => {
+                const slotItems = col.querySelector(`.slot-group[data-slot="${slot}"] .slot-items`);
+                if (!slotItems) return;
+                slotItems.innerHTML = '';
+
+                const cards = planData[dayIdx][slot];
+                if (cards) {
+                    cards.forEach((card, idx) => {
+                        const cardEl = document.createElement('div');
+                        cardEl.className = `plan-card ${slot}`;
+                        cardEl.dataset.day = dayIdx;
+                        cardEl.dataset.slot = slot;
+                        cardEl.dataset.idx = idx;
+                        cardEl.setAttribute('draggable', 'true');
+                        cardEl.innerHTML = `
+                            <span class="card-icon">${card.icon || getDefaultIcon(slot)}</span>
+                            <div class="card-content">
+                                <div class="card-title">${card.title}</div>
+                                ${card.subtitle ? `<div class="card-subtitle">${card.subtitle}</div>` : ''}
+                            </div>
+                            <button class="card-delete" onclick="deleteCard(${dayIdx}, '${slot}', ${idx})">✕</button>
+                        `;
+                        slotItems.appendChild(cardEl);
+                    });
+                }
+            });
+
+            // 重新绑定Sortable
+            initSortable();
+        }
+
+        // 保存并刷新
+        function saveAndRefresh() {
+            localStorage.setItem('travelPlan', JSON.stringify(planData));
+        }
+
+        // ========== 模态框 ==========
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('active');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('active');
+            document.getElementById('newCardTitle').value = '';
+            document.getElementById('newCardSubtitle').value = '';
+        }
+
+        function populateNewCardDay() {
+            const select = document.getElementById('newCardDay');
+            select.innerHTML = '';
+            dateList.forEach((day, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${day.date} ${day.weekday} ${day.badgeText || ''}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function addCustomCard() {
+            const type = document.getElementById('newCardType').value;
+            const title = document.getElementById('newCardTitle').value.trim();
+            const subtitle = document.getElementById('newCardSubtitle').value.trim();
+            const dayIdx = document.getElementById('newCardDay').value;
+            const slot = document.getElementById('newCardSlot').value;
+
+            if (!title) {
+                alert('请输入卡片标题');
+                return;
+            }
+
+            if (!planData[dayIdx]) {
+                planData[dayIdx] = { city: [], transport: [], hotel: [], activity: [] };
+            }
+
+            planData[dayIdx][slot].push({
+                title,
+                subtitle,
+                icon: getDefaultIcon(slot)
+            });
+
+            saveAndRefresh();
+            refreshDay(dayIdx);
+            closeAddModal();
+            showToast('卡片已添加！');
+        }
+
+        // ========== 导出 ==========
+        function exportPlan() {
+            const timeline = document.getElementById('timeline');
+            html2canvas(timeline, {
+                backgroundColor: '#0f172a',
+                scale: 2
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '旅行计划看板.png';
+                link.href = canvas.toDataURL();
+                link.click();
+                showToast('图片已导出！');
+            });
+        }
+
+        // ========== Toast提示 ==========
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #10b981;
+                color: white;
+                padding: 10px 24px;
+                border-radius: 8px;
+                font-size: 0.9em;
+                z-index: 9999;
+                animation: fadeInOut 2s ease;
+            `;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // ========== 启动 ==========
+        init();
+    </script>
+</body>
+</html>
